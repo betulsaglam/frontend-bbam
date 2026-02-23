@@ -15,12 +15,12 @@ const HomeScreen = ({ navigation }) => {
   }
 
   const workoutPlans = [
-    { id: '1', name: 'My Daily Workout', totalSteps: 5, avgDuration: 45 },
-    { id: '2', name: 'Legs', totalSteps: 4, avgDuration: 20 },
-    { id: '3', name: 'Arms', totalSteps: 3, avgDuration: 15 },
-    { id: '4', name: 'Test 1', totalSteps: 5, avgDuration: 45 },
-    { id: '5', name: 'Test 2', totalSteps: 4, avgDuration: 20 },
-    { id: '6', name: 'Test 3', totalSteps: 3, avgDuration: 15 },
+    { id: '1', name: 'My Daily Workout', totalExercises: 5, estimatedDuration: 45 },
+    { id: '2', name: 'Legs', totalExercises: 4, estimatedDuration: 20 },
+    { id: '3', name: 'Arms', totalExercises: 3, estimatedDuration: 15 },
+    { id: '4', name: 'Test 1', totalExercises: 5, estimatedDuration: 45 },
+    { id: '5', name: 'Test 2', totalExercises: 4, estimatedDuration: 20 },
+    { id: '6', name: 'Test 3', totalExercises: 3, estimatedDuration: 15 },
   ];
 
   const totalWorkouts = 6;
@@ -29,7 +29,11 @@ const HomeScreen = ({ navigation }) => {
   const loadWorkoutPlans = () => {};
   const loadUserProfile = () => {};
   const navigateToCreateWorkout = () => {};
-  const navigateToWorkoutDetails = () => {};
+  const navigateToWorkoutDetails = (workout) => {
+    navigation.navigate('WorkoutDetails', {
+      workoutPlan: workout
+    });
+  };
 
   return (
     <View className="flex-1 bg-bbam-back-page" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
@@ -72,15 +76,16 @@ const HomeScreen = ({ navigation }) => {
           <ScrollView
             vertical
             alwaysBounceVertical={false}
+            showsVerticalScrollIndicator={false}
             contentContainerClassName='flex-col gap-2 w-full'
           >
             {workoutPlans.map((workout) => (
               <CardItem 
                 key={workout.id}
                 title={workout.name}
-                subtitle={`${workout.totalSteps} steps, ${workout.avgDuration} mins`}
+                subtitle={`${workout.totalExercises} steps, ${workout.estimatedDuration} mins`}
                 variant='workoutDisplay'
-                onPress={navigateToWorkoutDetails}
+                onPress={() => navigateToWorkoutDetails(workout)}
               />
             ))}
           </ScrollView> 
