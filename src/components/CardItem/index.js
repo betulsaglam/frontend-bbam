@@ -22,7 +22,7 @@ const CardItem = ({
       baseColor='#E5ECF3'
       activeColor='#E2E8F0'
       disabled={variant !== 'workoutDisplay'}
-      className='flex-row items-center bg-bbam-back-card active:bg-slate-200 rounded-2xl overflow-hidden w-full max-h-20'
+      className='flex-row items-center bg-bbam-back-card active:bg-slate-200 rounded-2xl overflow-hidden w-full h-20'
     >
       {/* Left Image Placeholder */}
       {variant !== 'workoutDisplay' && (
