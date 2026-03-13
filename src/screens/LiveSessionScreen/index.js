@@ -1,11 +1,23 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import { RNMediapipe } from '@thinksys/react-native-mediapipe';
 import { Ionicons } from '@expo/vector-icons';
+import { evaluateForm } from '../../utils/ruleEngine';
+import { mapMediaPipeToInternal } from '../../utils/poseMath';
+import { feedbackProvider } from '../../utils/feedback';
 
-const PoseDetectionScreen = ({ navigation }) => {
+const PoseDetectionScreen = ({ navigation, route }) => {
+  const { exerciseType } = route.params || { exerciseType: 'Squat' }; 
+  const [feedback, setFeedback] = useState("Align your body...");
+
   const handleLandmarks = (data) => {
-    console.log("Landmarks detected:", data);
+    if (data && data.landmarks) {
+      const internalLandmarks = mapMediaPipeToInternal(data.landmarks); 
+      const evaluation = evaluateForm(internalLandmarks, exerciseType);
+      const message = feedbackProvider.processFeedback(evaluation);
+      
+      setFeedback(message);
+    }
   };
 
   return (
@@ -25,7 +37,6 @@ const PoseDetectionScreen = ({ navigation }) => {
         rightAnkle={true}
       />
 
-      {/* Standard Body & Beyond Overlay */}
       <View className="absolute top-12 left-6">
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
@@ -34,6 +45,13 @@ const PoseDetectionScreen = ({ navigation }) => {
           <Ionicons name="close" size={28} color="white" />
         </TouchableOpacity>
       </View>
+      
+      <View className="absolute bottom-20 self-center bg-bbam-indigo-main/80 px-6 py-4 rounded-3xl">
+        <Text className="text-white font-bold text-center text-m3-body-large">
+          {feedback}
+        </Text>
+      </View>
+      
     </View>
   );
 };
