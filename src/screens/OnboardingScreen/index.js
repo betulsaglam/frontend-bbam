@@ -4,10 +4,13 @@ import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import Button from "../../components/Button";
 import TextInput from "../../components/TextInput";
 
-import { useLogin } from "../../hooks/useAuth";
+import { useLogin, useRegister, useUpdateProfile } from "../../hooks/useAuth";
 
 const OnboardingScreen = ({ navigation }) => {
-  const { mutate: login, isPending: isLoginPending, error: loginError } = useLogin();
+  const { mutateAsync: login, isPending: isLoginPending, error: loginError } = useLogin();
+  const { mutateAsync: register } = useRegister();
+  const { mutateAsync: updateProfile } = useUpdateProfile();
+
   // ===== LLD ATTRIBUTES =====
   const [currentView, setCurrentView] = useState("login"); // 'login' | 'signup' | 'setup'
 
@@ -25,10 +28,11 @@ const OnboardingScreen = ({ navigation }) => {
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
 
   // LLD attributes (not used for now, but exist)
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [deviceUuid, setDeviceUuid] = useState("");
   const [expoPushToken, setExpoPushToken] = useState("");
+  const [userId, setUserId] = useState("");
 
   const isLogin = currentView === "login";
   const isSignup = currentView === "signup";
@@ -67,7 +71,7 @@ const OnboardingScreen = ({ navigation }) => {
   };
 
   const validateInputs = () => {
-    setErrorMessage("");
+    setErrorMessage({});
 
     const isInDevelopment = false; // change to bypass in development
     if (isInDevelopment) {
@@ -77,42 +81,43 @@ const OnboardingScreen = ({ navigation }) => {
     if (isSignup || isSetup) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(emailInput)) {
-        setErrorMessage("Email is invalid");
+        setErrorMessage({ common: "Email is invalid" });
         return false;
       }
 
       if (!passwordInput || passwordInput.length < 8) {
         const msg = "Password should be at least 8 characters long";
-        setErrorMessage(msg);
+        setErrorMessage({ common: msg });
         return false;
       }
     }
 
     if (isSignup && passwordInput !== confirmPasswordInput) {
-      setErrorMessage("Passwords do not match");
+      setErrorMessage({ signup: "Passwords do not match" });
       return false;
     }
 
     if (isSignup && !acceptedPolicy) {
-      setErrorMessage("Please accept the Privacy Policy to continue");
+      setErrorMessage({ signup: "Please accept the Privacy Policy to continue" });
       return false;
     }
 
     if (isSetup) {
+      const numberRegex = /^\d+$/;
       const age = parseInt(ageInput);
       const height = parseInt(heightInput);
       const weight = parseInt(weightInput);
 
-      if (isNaN(age) || age < 10 || age >= 100) {
-        setErrorMessage("Please enter a valid age (10-99)");
+      if (!numberRegex.test(age) || isNaN(age) || age < 10 || age >= 100) {
+        setErrorMessage({ setup: "Please enter a valid age (10-99)" });
         return false;
       }
-      if (isNaN(height) || height < 50 || height > 250) {
-        setErrorMessage("Please enter a valid height (50-250 cm)");
+      if (!numberRegex.test(height) || isNaN(height) || height < 50 || height > 250) {
+        setErrorMessage({ setup :"Please enter a valid height (50-250 cm)" });
         return false;
       }
-      if (isNaN(weight) || weight < 20 || weight > 200) {
-        setErrorMessage("Please enter a valid weight (20-200 kg)");
+      if (!numberRegex.test(weight) || isNaN(weight) || weight < 20 || weight > 200) {
+        setErrorMessage({ setup: "Please enter a valid weight (20-200 kg)" });
         return false;
       }
     }
@@ -126,7 +131,7 @@ const OnboardingScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     if (validateInputs()) {
-      login({
+      await login({
         email: emailInput,
         password: passwordInput,
       });
@@ -134,16 +139,46 @@ const OnboardingScreen = ({ navigation }) => {
   };
 
   const handleSignup = async () => {
-    if (validateInputs()) {
-      // insert api calls
+    if (!validateInputs()) return;
+
+    try {
+      setIsLoading(true);
+      const user = await register({
+        email: emailInput,
+        password: passwordInput,
+      });
+      setUserId(String(user.user_id));
+      setIsLoading(false);
       switchView("setup");
+    } catch (err) {
+      setIsLoading(false);
+      setErrorMessage({ signup: "Signup failed." });
     }
   };
 
   const handleSetupComplete = async () => {
-    if (validateInputs()) {
-      // insert api calls
-      navigation.navigate("MainTabs");
+    if (!validateInputs()) return;
+
+    try {
+      setIsLoading(true);
+
+      // need to authorize first to send profile data
+      await login({ email: emailInput, password: passwordInput });
+
+      await updateProfile({
+        user_id: userId,
+        user_name: usernameInput,
+        height_cm: Number(heightInput),
+        weight_kg: Number(weightInput),
+        age: Number(ageInput),
+        gender: genderInput,
+      });
+    
+    } catch (err) {
+      console.log({ setupErr: err });
+      setErrorMessage({ setup: "Setup failed." });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -251,7 +286,7 @@ const OnboardingScreen = ({ navigation }) => {
               </Text>
               <TextInput
                 label=""
-                placeholder="bbamtest"
+                placeholder="username"
                 isPassword={false}
                 value={usernameInput}
                 onChangeText={setUsernameInput}
@@ -298,12 +333,16 @@ const OnboardingScreen = ({ navigation }) => {
                 onPress={() => setAcceptedPolicy((v) => !v)}
               >
                 <View
-                  className={`w-8 h-8 rounded-lg border-2 ${
+                  className={`w-8 h-8 rounded-lg border-2 items-center justify-center ${
                     acceptedPolicy
                       ? "bg-bbam-indigo-main border-bbam-indigo-main"
                       : "border-bbam-text-light"
                   }`}
-                />
+                >
+                  {acceptedPolicy && (
+                    <Text className="text-white text-lg font-bold">✓</Text>
+                  )}
+                </View>
                 <Text className="ml-4 text-[16px] text-bbam-text-main">
                   By continuing, you agree to our{" "}
                   <Text className="text-bbam-indigo-main font-bold">
@@ -313,10 +352,10 @@ const OnboardingScreen = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
 
-              {errorMessage && (
+              {(errorMessage.signup || errorMessage.common) && (
                 <View className="bg-red-50 p-4 rounded-2xl mt-6 -mb-2s border border-red-100">
                   <Text className="text-red-600 text-m3-body-small font-bold text-center">
-                    {errorMessage}
+                    {errorMessage.signup || errorMessage.common}
                   </Text>
                 </View>
               )}
@@ -327,6 +366,7 @@ const OnboardingScreen = ({ navigation }) => {
                   variant="primary"
                   onPress={handleSignup}
                   className="py-5"
+                  isLoading={isLoading}
                   testID="signup-continue-button"
                 />
               </View>
@@ -351,7 +391,10 @@ const OnboardingScreen = ({ navigation }) => {
           {isSetup && (
             <>
               <TouchableOpacity
-                onPress={() => switchView("signup")}
+                onPress={() => {
+                  switchView("signup");
+                  setUserId("");
+                }}
                 className="flex-row items-center mb-12"
               >
                 <Text className="text-[28px] mr-2 text-bbam-indigo-main">
@@ -374,10 +417,11 @@ const OnboardingScreen = ({ navigation }) => {
               </Text>
               <TextInput
                 label=""
-                placeholder="21"
+                placeholder=""
                 isPassword={false}
                 value={ageInput}
                 onChangeText={setAgeInput}
+                keyboardType="number-pad"
               />
 
               <View className="mt-6" />
@@ -390,6 +434,7 @@ const OnboardingScreen = ({ navigation }) => {
                 isPassword={false}
                 value={weightInput}
                 onChangeText={setWeightInput}
+                keyboardType="number-pad"
               />
 
               <View className="mt-6" />
@@ -402,6 +447,7 @@ const OnboardingScreen = ({ navigation }) => {
                 isPassword={false}
                 value={heightInput}
                 onChangeText={setHeightInput}
+                keyboardType="number-pad"
               />
 
               <View className="mt-8" />
@@ -451,12 +497,21 @@ const OnboardingScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
+              {(errorMessage.setup || errorMessage.common) && (
+                <View className="bg-red-50 p-4 rounded-2xl mt-6 -mb-2s border border-red-100">
+                  <Text className="text-red-600 text-m3-body-small font-bold text-center">
+                    {errorMessage.setup || errorMessage.common}
+                  </Text>
+                </View>
+              )}
+
               <View className="mt-12">
                 <Button
                   title="Sign Up"
                   variant="primary"
                   onPress={handleSetupComplete}
                   className="rounded-[28px] py-5"
+                  isLoading={isLoading}
                 />
               </View>
             </>

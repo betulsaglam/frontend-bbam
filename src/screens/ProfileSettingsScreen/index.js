@@ -312,6 +312,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
                     setAgeInput(v);
                     setHasUnsavedChanges(true);
                   }}
+                  keyboardType="number-pad"
                 />
 
                 <View className="mt-4" />
@@ -324,6 +325,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
                     setWeightInput(v);
                     setHasUnsavedChanges(true);
                   }}
+                  keyboardType="number-pad"
                 />
 
                 <View className="mt-4" />
@@ -336,6 +338,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
                     setHeightInput(v);
                     setHasUnsavedChanges(true);
                   }}
+                  keyboardType="number-pad"
                 />
 
                 <Text className="text-m3-label-large font-bold text-bbam-text-main mt-6 mb-3">
