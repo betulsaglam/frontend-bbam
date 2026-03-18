@@ -1,10 +1,16 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Platform, Linking, Alert } from "react-native";
+import * as Notifications from 'expo-notifications';
+import * as Application from 'expo-application';
+import Constants from 'expo-constants';
+import * as SecureStore from 'expo-secure-store';
 import Button from "../../components/Button";
 import TextInput from "../../components/TextInput";
 
 import { useLogin, useRegister, useUpdateProfile } from "../../hooks/useAuth";
+import api from "../../api";
+import { requestPermissionWithAlert } from "../../utils/notifications";
 
 const OnboardingScreen = ({ navigation }) => {
   const { mutateAsync: login, isPending: isLoginPending, error: loginError } = useLogin();
@@ -41,6 +47,21 @@ const OnboardingScreen = ({ navigation }) => {
   useEffect(() => {
     setIsLoading(isLoginPending);
   }, [isLoginPending]);
+
+  useEffect(() => {
+    const setData = async () => {
+      const uuid = Platform.OS === 'ios' ? await Application.getIosIdForVendorAsync() : Application.getAndroidId();
+      setDeviceUuid(uuid);
+
+      const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: projectId
+      });
+
+      setExpoPushToken(tokenData.data);
+    }
+    setData();
+  }, []);
 
   // ===== UI HELPERS =====
   const Divider = () => (
@@ -125,8 +146,24 @@ const OnboardingScreen = ({ navigation }) => {
     return true;
   };
 
-  const registerDeviceWithBackend = async () => {
-    // TODO register on login?
+  const registerDeviceWithBackend = async (user_id) => {
+    try {
+      const storageKey = `is_registered_${user_id}_${deviceUuid}`;
+      const alreadyRegistered = await SecureStore.getItemAsync(storageKey);
+      if (alreadyRegistered === 'true') return;
+      console.log({ registerData: { user_id: user_id, device_uuid: deviceUuid, os_type: Platform.OS, expo_token: expoPushToken } });
+
+      await api.post('/users/devices/', {
+        user_id: user_id,
+        os_type: Platform.OS,
+        device_uuid: deviceUuid,
+        expo_token: expoPushToken,
+      });
+  
+      await SecureStore.setItemAsync(storageKey, 'true');
+    } catch (error) {
+      console.error("Error in device registration:", error);
+    }
   };
 
   const handleLogin = async () => {
@@ -134,6 +171,23 @@ const OnboardingScreen = ({ navigation }) => {
       await login({
         email: emailInput,
         password: passwordInput,
+      }, {
+        onSuccess: async (data) => {
+          const preference = await SecureStore.getItemAsync('notif_preference');
+
+          if (!preference) {
+            const userWantsNotifs = await requestPermissionWithAlert();
+
+            if (userWantsNotifs) {
+              await SecureStore.setItemAsync('notif_preference', 'enabled');
+              await registerDeviceWithBackend(data.user_id);
+            } else {
+              await SecureStore.setItemAsync('notif_preference', 'disabled');
+            }
+          } else if (preference === 'enabled') {
+            await registerDeviceWithBackend(data.user_id);
+          }
+        }
       });
     }
   };
@@ -173,6 +227,21 @@ const OnboardingScreen = ({ navigation }) => {
         age: Number(ageInput),
         gender: genderInput,
       });
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+
+      if (existingStatus === 'granted') {
+        await registerDeviceWithBackend(userId);
+      } else {
+        const userWantsNotifs = await requestPermissionWithAlert();
+
+        if (userWantsNotifs) {
+          await SecureStore.setItemAsync('notif_preference', 'enabled');
+          await registerDeviceWithBackend(userId);
+        } else {
+          await SecureStore.setItemAsync('notif_preference', 'disabled');
+        }
+      }
     
     } catch (err) {
       console.log({ setupErr: err });

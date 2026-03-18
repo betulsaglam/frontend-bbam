@@ -57,7 +57,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
   const [ageInput, setAgeInput] = useState("");
   const [genderInput, setGenderInput] = useState("male");
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState({});
@@ -69,6 +69,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
   useEffect(() => {
     loadProfile();
     setupNotificationListeners();
+    setNotificationPreference();
   }, []);
 
   const initials = useMemo(() => {
@@ -79,6 +80,11 @@ const ProfileSettingsScreen = ({ navigation }) => {
     const last = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
     return (first + last).toUpperCase();
   }, [userProfile]);
+
+  const setNotificationPreference = async () => {
+    const preference = await SecureStore.getItemAsync('notif_preference');
+    setNotificationsEnabled(preference === 'enabled');
+  }
 
   // ===== METHODS (keep LLD shape; stubs are ok) =====
   const loadProfile = async () => {
