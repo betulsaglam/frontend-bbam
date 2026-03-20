@@ -1,35 +1,50 @@
 import { calculateAngle } from './poseMath';
 import exerciseRules from './rules.json';
 
+const getSideIds = (ids, targetSide) => ids.map(id => {
+  if (id === 0) return 0;
+  const isCurrentlyLeft = id % 2 !== 0;
+  if (targetSide === 'left') return isCurrentlyLeft ? id : id - 1;
+  if (targetSide === 'right') return isCurrentlyLeft ? id + 1 : id;
+  return id;
+});
+
 export const evaluateForm = (landmarks, exerciseType) => {
   const feedback = { message: "Looking good!", isCorrect: true, errorType: null };
   const currentExercise = exerciseRules[exerciseType];
-
   if (!currentExercise || !landmarks) return feedback;
-  for (const rule of currentExercise.rules) {
-    const leftSide = [23, 25, 27]; // Hip, Knee, Ankle (Left)
-    const rightSide = [24, 26, 28]; // Hip, Knee, Ankle (Right)
-    let jointsToUse = rule.joints;
-    if (JSON.stringify(rule.joints) === JSON.stringify(rightSide)) {
-      const leftVis = (landmarks[23]?.visibility || 0) + (landmarks[25]?.visibility || 0);
-      const rightVis = (landmarks[24]?.visibility || 0) + (landmarks[26]?.visibility || 0);
-      jointsToUse = rightVis >= leftVis ? rightSide : leftSide;
-    }
 
+  const config = currentExercise.repConfig || currentExercise.holdConfig;
+  const criticalJoints = config.primaryJoints;
+  const leftPrimary = getSideIds(criticalJoints, 'left');
+  const rightPrimary = getSideIds(criticalJoints, 'right');
+  const leftVis = leftPrimary.reduce((acc, id) => acc + (landmarks[id]?.visibility || 0), 0) / criticalJoints.length;
+  const rightVis = rightPrimary.reduce((acc, id) => acc + (landmarks[id]?.visibility || 0), 0) / criticalJoints.length;
+
+  if (Math.max(leftVis, rightVis) < 0.2 && Object.keys(landmarks).length > 5) return { message: "Body not fully visible", isCorrect: false, errorType: 'VISIBILITY' };
+  
+  const bestSide = rightVis >= leftVis ? 'right' : 'left';
+
+  for (const rule of currentExercise.rules) {
+    const hasLeft = rule.joints.some(id => id !== 0 && id % 2 !== 0);
+    const hasRight = rule.joints.some(id => id !== 0 && id % 2 === 0);
+    const isCrossBody = hasLeft && hasRight;
+    const jointsToUse = isCrossBody ? rule.joints : getSideIds(rule.joints, bestSide);
+    
     const p1 = landmarks[jointsToUse[0]];
     const p2 = landmarks[jointsToUse[1]];
     const p3 = landmarks[jointsToUse[2]];
-
     if (!p1 || !p2 || !p3) continue;
 
     const angle = calculateAngle(p1, p2, p3);
-    const isError = (rule.minAngle !== undefined && angle < rule.minAngle) || (rule.maxAngle !== undefined && angle > rule.maxAngle);
-
-    if (isError) {
+    const isMinError = rule.minAngle !== undefined && angle < (rule.minAngle-2);
+    const isMaxError = rule.maxAngle !== undefined && angle > (rule.maxAngle+2);
+    //Are you adjusting the seat really? That's been your fucking problem the whole time. The seat height. So now you have it, right?
+    if (isMinError || isMaxError) {
       feedback.message = rule.message;
       feedback.isCorrect = false;
       feedback.errorType = rule.id;
-      break;
+      break; 
     }
   }
 
