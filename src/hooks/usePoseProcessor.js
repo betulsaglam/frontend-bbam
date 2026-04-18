@@ -5,7 +5,7 @@ import { calculateEMA, calculateAngle3D, calculateAngle } from '../utils/poseMat
 import { feedbackProvider } from '../utils/feedback';
 import { getSideIds } from '../utils/ruleEngine';
 
-export const usePoseProcessor = (exerciseId, screenAspectRatio) => {
+export const usePoseProcessor = (exerciseId, currentIndex, screenAspectRatio) => {
   const [appState, setAppState] = useState('CALIBRATING'); // 'CALIBRATING' | 'WORKOUT' | 'WAITING'
   const appStateRef = useRef('CALIBRATING'); // for some reason ui shows the change but the processFrame func is stuck with the old value (dont ask), we need this
   const [reps, setReps] = useState(0);
@@ -78,7 +78,21 @@ export const usePoseProcessor = (exerciseId, screenAspectRatio) => {
     if (calibrationTriggeredRef.current === true) {
       startTransitionCountdown();
     }
-  }, [exerciseId]);
+  }, [exerciseId, currentIndex]);
+
+  const stopProcessor = () => {
+    appStateRef.current = 'FINISHED';
+    setAppState('FINISHED');
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+  };
 
   const checkTPose = (landmarks, aspectRatio = 1.7) => {
     const criticalIds = [11, 12, 13, 14];
@@ -99,7 +113,7 @@ export const usePoseProcessor = (exerciseId, screenAspectRatio) => {
     const aspectRatio = screenAspectRatio || fallbackRatio;
     //console.log(`EX: ${exerciseId} | Mode: ${config.mode} | Angle: ${currentAngle} | Correct: ${evaluation.isCorrect} | State: ${motionStateRef.current}`);
     //if(!exerciseLibrary) console.log({exerciseLibrary});
-    if (!landmarks) return;
+    if (!landmarks || appStateRef.current === 'FINISHED') return;
 
     const currentAppState = appStateRef.current;
     const currentId = exerciseIdRef.current;
@@ -153,10 +167,13 @@ export const usePoseProcessor = (exerciseId, screenAspectRatio) => {
       const bestSide = rightVis >= leftVis ? 'right' : 'left';
       if (Math.max(leftVis, rightVis) < 0.5) { 
         return { 
-          message: "Body not fully visible", 
-          isCorrect: false, 
-          errorType: 'VISIBILITY' 
-        }; 
+          evaluation: {
+            message: "Body not fully visible", 
+            isCorrect: false, 
+            errorType: 'VISIBILITY' 
+          },
+          currentAngle: 0
+        };
       }
       const dynamicJoints = bestSide === 'right' ? rightSideJoints : leftSideJoints;
       
@@ -169,9 +186,9 @@ export const usePoseProcessor = (exerciseId, screenAspectRatio) => {
       
       currentAngle = calculateEMA(rawAngle, smoothedAnglesRef.current[currentId]);
       smoothedAnglesRef.current[currentId] = currentAngle;
-      console.log(`Angle: ${currentAngle} | State: ${motionStateRef.current} | Start: ${config.repConfig.startThreshold}`);
       // bicep curl 160 ama 145 olmalı, json&db degisecek
       if (config.mode === 'reps') {
+        //console.log(`Angle: ${currentAngle} | State: ${motionStateRef.current} | Start: ${config.repConfig.startThreshold}`);
         const isClosing = config.repConfig.startThreshold > config.repConfig.midThreshold;
         
         if (evaluation.isCorrect) {
@@ -265,5 +282,5 @@ export const usePoseProcessor = (exerciseId, screenAspectRatio) => {
     };
   }, []);
 
-  return { reps, seconds, motionState, feedback, appState, restCountdown, processFrame };
+  return { reps, seconds, motionState, feedback, appState, restCountdown, processFrame, stopProcessor };
 };

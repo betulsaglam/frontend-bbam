@@ -16,11 +16,8 @@ export const createSession = async (planId, startTime) => {
   return data;
 };
 
-export const endSession = async (sessionId, exercises = [], durationMinutes) => {
-  const { data } = await api.post(`/tracking/sessions/${sessionId}/end/`, {
-    exercises,
-    ...(durationMinutes != null && { duration_minutes: durationMinutes }),
-  });
+export const endSession = async (sessionId, payload) => {
+  const { data } = await api.post(`/tracking/sessions/${sessionId}/end/`, payload);
   return data;
 };
 
