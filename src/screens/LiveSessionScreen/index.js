@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { RNMediapipe, switchCamera } from '@thinksys/react-native-mediapipe';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { usePoseProcessor } from '../../hooks/usePoseProcessor';
 import { useExerciseLibrary } from '../../hooks/useExerciseLibrary';
 import { feedbackProvider } from '../../utils/feedback';
 
-import { deleteSession } from '../../services/trackingService';
+import { deleteSession, endSession } from '../../services/trackingService';
 
 const LiveSessionScreen = ({ navigation, route }) => {
   const { exerciseList = [], sessionId } = route.params || {};
@@ -21,11 +21,22 @@ const LiveSessionScreen = ({ navigation, route }) => {
   const { width, height } = useWindowDimensions();
   const aspectRatio = height / width;
 
-  const { reps, seconds, feedback, appState, restCountdown, processFrame } = usePoseProcessor(exerciseId, aspectRatio);
+  const { reps, seconds, feedback, appState, restCountdown, processFrame, stopProcessor } = usePoseProcessor(exerciseId, currentIndex, aspectRatio);
   const { data: exerciseLibrary = {} } = useExerciseLibrary();
 
   const landmarksSV = useSharedValue({});
   const isCorrectSV = useSharedValue(true);
+
+  const statsRef = useRef({
+    startTime: new Date(),
+    completedExercises: [],
+    currentStats: {
+      totalFrames: 0,
+      correctFrames: 0,
+      errors: new Set()
+    }
+  });
+  const isSessionEndedRef = useRef(false);
 
   useEffect(() => {
     isCorrectSV.value = feedback === "Looking good!" || feedback === "Perfect!";
@@ -42,12 +53,26 @@ const LiveSessionScreen = ({ navigation, route }) => {
   }, [exerciseList]);
 
   const handleLandmarks = (data) => {
+    if (isSessionEndedRef.current) return;
+
     const parsedData = JSON.parse(data);
     if (parsedData?.landmarks) {
       const internalLandmarks = mapMediaPipeToInternal(parsedData.landmarks);
       const smoothed = smoothLandmarks(internalLandmarks, landmarksSV.value, 0.3);
       landmarksSV.value = smoothed;
-      processFrame(internalLandmarks);
+      const result = processFrame(internalLandmarks);
+
+      // collect stats for current exercise
+      if (appState === 'WORKOUT' && result?.evaluation) {
+        const { isCorrect, message, errorType } = result.evaluation;
+        
+        statsRef.current.currentStats.totalFrames += 1;
+        if (isCorrect) {
+          statsRef.current.currentStats.correctFrames += 1;
+        } else if (message && message !== "Looking good!" && message !== "Perfect!") {
+          statsRef.current.currentStats.errors.add(message);
+        }
+      }
     }
   };
 
@@ -73,13 +98,52 @@ const LiveSessionScreen = ({ navigation, route }) => {
     isCorrectSV.value ? "#00FF00" : "#FF0000"
   );
 
-  const handleNextExercise = () => {
-    if (currentIndex < exerciseList.length - 1) {
+  const handleNextExercise = async () => {
+    if (currentIndex >= exerciseList.length) return;
+
+    const isLastExercise = currentIndex === exerciseList.length - 1;
+
+    // create stats history
+    const currentStats = statsRef.current.currentStats;
+    const accuracy = currentStats.totalFrames > 0 
+      ? (currentStats.correctFrames / currentStats.totalFrames) * 100 
+      : 100;
+    
+    const exerciseResult = {
+      exercise_id: currentExercise.id,
+      accuracy_score: Math.round(accuracy),
+      ...(currentExercise.mode === 'reps' ? { completed_reps: reps } : { completed_seconds: seconds }),
+      step_order: currentIndex + 1,
+      common_errors: Array.from(currentStats.errors)
+    };
+    statsRef.current.completedExercises.push(exerciseResult);
+
+    // reset stats for next exercise
+    statsRef.current.currentStats = { totalFrames: 0, correctFrames: 0, errors: new Set() };
+
+    if (!isLastExercise) {
       setIsTransitioning(true);
       setCurrentIndex(prev => prev + 1);
       feedbackProvider.triggerVoiceOutput("Exercise complete! Get ready for the next one.");
     } else {
-      navigation.navigate('SessionSummary', { sessionId });
+      const endTime = new Date();
+      const durationMinutes = Math.max(1, Math.round((endTime - statsRef.current.startTime) / 60000));
+
+      const finalPayload = {
+        duration_minutes: durationMinutes,
+        exercises: statsRef.current.completedExercises
+      };
+
+      isSessionEndedRef.current = true; 
+      stopProcessor();
+
+      try {
+        console.log({ finalStats: finalPayload.exercises, duration: finalPayload.duration_minutes });
+        //await endSession(sessionId, finalPayload);
+      } catch (e) {
+        console.error("Failed to save session results:", e);
+      }
+      //navigation.navigate('SessionSummary', { sessionId });
     }
   };
 
@@ -100,7 +164,7 @@ const LiveSessionScreen = ({ navigation, route }) => {
 
     const targetValue = currentExercise.value || 0;
     const isFinished = currentExercise.mode === 'reps' ? reps >= targetValue : seconds >= targetValue;
-    if (appState === 'WORKOUT' && isFinished && targetValue > 0) handleNextExercise();
+    if (!isSessionEndedRef.current && appState === 'WORKOUT' && isFinished && targetValue > 0) handleNextExercise();
   }, [reps, seconds, currentIndex, isTransitioning, appState, currentExercise.mode, currentExercise.value]);
 
   const currentConfig = exerciseLibrary[currentExercise.id];
