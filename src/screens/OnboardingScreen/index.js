@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Platform, Linking, Alert, Modal } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Platform, Linking, Alert, Modal, Image } from "react-native";
 import * as Notifications from 'expo-notifications';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
@@ -282,9 +282,11 @@ const OnboardingScreen = ({ navigation }) => {
         {/* ===== HERO (LOGIN ONLY) ===== */}
         {isLogin && (
           <View className="w-full h-[300px] bg-bbam-back-card items-center justify-center">
-            <View className="w-12 h-12 rounded-lg items-center justify-center mb-4 bg-bbam-indigo-main">
-              <Text className="text-white font-bold">▢</Text>
-            </View>
+            <Image 
+              source={require('../../../assets/icon.png')} // 👈 Path to your saved logo
+              className="w-32 h-32 mb-2 rounded-2xl"
+              resizeMode="contain"
+            />
 
             <Text className="text-[34px] font-bold text-bbam-indigo-main">
               Body & Beyond
