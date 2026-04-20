@@ -250,7 +250,7 @@ const SessionDetail = ({ session, onBack }) => {
       try {
         setLoading(true);
         const data = await getSessionExercises(session.id);
-        console.log({sessionexercises: data});
+        //console.log({sessionexercises: data});
         setSessionExercises(data);
       } catch (err) {
         console.error("Failed to fetch exercises:", err);
@@ -461,7 +461,7 @@ const ProgressScreen = ({ route }) => {
 
   const sectionedData = React.useMemo(() => {
     const groups = groupSessionsByPlan(sessions);
-    console.log({groups});
+    //console.log({groups});
     
     return groups.map(section => ({
       ...section,
@@ -471,7 +471,7 @@ const ProgressScreen = ({ route }) => {
   }, [sessions, expandedSections]);
 
   const toggleSection = (planId) => {
-    console.log({expandedSections});
+    //console.log({expandedSections});
     setExpandedSections(prev => ({
       ...prev,
       [planId]: !prev[planId] // Toggle the boolean

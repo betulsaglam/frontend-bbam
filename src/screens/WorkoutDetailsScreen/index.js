@@ -113,7 +113,7 @@ const WorkoutDetailsScreen = ({ route, navigation }) => {
         try {
           await deleteReminder(reminderId);
         } catch (e) {
-          console.log("deleteReminder error:", e);
+          //console.log("deleteReminder error:", e);
         }
         setReminderId(null);
       }
@@ -127,7 +127,7 @@ const WorkoutDetailsScreen = ({ route, navigation }) => {
     try {
       await saveReminderState(planId, true);
     } catch (e) {
-      console.log("[Reminder] notification error:", e?.message);
+      //console.log("[Reminder] notification error:", e?.message);
     }
 
     try {
@@ -138,10 +138,10 @@ const WorkoutDetailsScreen = ({ route, navigation }) => {
       const result = await createReminder({ planId, schedule: scheduleData });
       setReminderId(result.id);
     } catch (e) {
-      console.log(
+      /* console.log(
         "[Reminder] backend save skipped:",
         e?.response?.status ?? e?.message,
-      );
+      ); */
     }
   };
 

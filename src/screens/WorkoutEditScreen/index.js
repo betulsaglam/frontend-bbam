@@ -129,11 +129,11 @@ const WorkoutEditScreen = ({ route, navigation }) => {
       ...rest,
       value: Number(rest.value),
     }));
-    console.log({
+    /* console.log({
       current: JSON.stringify(currentFormat),
       initial: initialExercises,
       isSame: JSON.stringify(currentFormat) === initialExercises,
-    });
+    }); */
     return JSON.stringify(currentFormat) !== initialExercises;
   };
 
@@ -165,7 +165,7 @@ const WorkoutEditScreen = ({ route, navigation }) => {
         schedule: currentSchedule,
       };
 
-      console.log("Saving Plan:", finalPlan);
+      //console.log("Saving Plan:", finalPlan);
 
       const exercisesChanged = hasExercisesChanged();
       const payload = { plan_name: planName };
@@ -195,7 +195,7 @@ const WorkoutEditScreen = ({ route, navigation }) => {
         try {
           await createReminder({ planId: newWorkoutData.id, schedule: currentSchedule });
         } catch (e) {
-          console.log('[Reminder] backend save skipped:', e?.response?.status ?? e?.message);
+          //console.log('[Reminder] backend save skipped:', e?.response?.status ?? e?.message);
         }
       }
 
@@ -216,7 +216,7 @@ const WorkoutEditScreen = ({ route, navigation }) => {
         }),
       );
     } catch (error) {
-      console.log({ workoutSaveError: error });
+      //console.log({ workoutSaveError: error });
       Alert.alert("Save Failed", error);
     } finally {
       setIsLoading(false);

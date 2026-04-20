@@ -11,7 +11,6 @@ export const useUser = () => {
       if (!userId) return null;
 
       const { data } = await api.get(`/users/profiles/${userId}/`);
-      console.log({ userData: data});
       return data;
     },
     retry: false,
@@ -31,7 +30,7 @@ export const useLogin = () => {
       };
     },
     onSuccess: async (data) => {
-      console.log({ loginData: data });
+      //console.log({ loginData: data });
       await SecureStore.setItemAsync('userToken', data.access);
       await SecureStore.setItemAsync('userId', String(data.user_id)); 
       await SecureStore.setItemAsync('userEmail', data.email);

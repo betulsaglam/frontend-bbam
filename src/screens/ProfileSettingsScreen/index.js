@@ -163,7 +163,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
         Alert.alert("Success", "Profile updated successfully!");
       },
       onError: (error) => {
-        console.log(error);
+        //console.log(error);
         setErrorMessage({ edit: "Failed to update profile." });
       }
     });
@@ -185,7 +185,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
     setNotificationsEnabled(enabled);
     if (enabled) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      console.log({existingStatus});
+      //console.log({existingStatus});
       
       if (existingStatus === 'granted') {
         setNotificationsEnabled(true);
@@ -277,7 +277,7 @@ const ProfileSettingsScreen = ({ navigation }) => {
       setIsLoading(false);
     } catch (e) {
       setIsLoading(false);
-      console.log(e);
+      //console.log(e);
       setErrorMessage({ logout: "Failed to log out." });
     }
   };

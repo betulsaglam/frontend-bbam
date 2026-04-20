@@ -139,7 +139,7 @@ const OnboardingScreen = ({ navigation }) => {
       const storageKey = `is_registered_${user_id}_${deviceUuid}`;
       const alreadyRegistered = await SecureStore.getItemAsync(storageKey);
       if (alreadyRegistered === 'true') return;
-      console.log({ registerData: { user_id: user_id, device_uuid: deviceUuid, os_type: Platform.OS, expo_token: expoPushToken } });
+      //console.log({ registerData: { user_id: user_id, device_uuid: deviceUuid, os_type: Platform.OS, expo_token: expoPushToken } });
 
       await api.post('/users/devices/', {
         user_id: user_id,
@@ -191,7 +191,7 @@ const OnboardingScreen = ({ navigation }) => {
       switchView("setup");
     } catch (err) {
       setIsLoading(false);
-      console.log({err})
+      //console.log({err})
       setErrorMessage({ signup: "Signup failed." });
     }
   };
@@ -247,16 +247,12 @@ const OnboardingScreen = ({ navigation }) => {
       await registerDeviceWithBackend(userId);
     
     } catch (err) {
-      console.log({ setupErr: err });
+      //console.log({ setupErr: err });
       setErrorMessage({ setup: "Setup failed." });
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    console.log({loginError});
-  }, [loginError]);
 
   return (
     <View className="flex-1 bg-bbam-back-page">
