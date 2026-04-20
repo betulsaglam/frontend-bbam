@@ -220,6 +220,7 @@ const WorkoutDetailsScreen = ({ route, navigation }) => {
               variant="exerciseDisplay"
               description={item.description}
               gifUrl={item.gifUrl}
+              exerciseId={item.id}
             />
           ))}
         </ScrollView>
